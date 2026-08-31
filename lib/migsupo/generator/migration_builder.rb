@@ -32,6 +32,12 @@ module Migsupo
         RUBY
       end
 
+      # Renders one create_table block (plus its add_index lines) - the same shape
+      # a Schemafile uses.
+      def build_table(table)
+        render_create_table(Differ::Operations::CreateTable.new(table))
+      end
+
       private
 
       def version_suffix
@@ -102,7 +108,7 @@ module Migsupo
 
       def render_drop_table(op, direction:)
         if direction == :down
-          render_create_table(Operations::CreateTable.new(op.table))
+          render_create_table(Differ::Operations::CreateTable.new(op.table))
         else
           "drop_table #{op.table_name.inspect}"
         end

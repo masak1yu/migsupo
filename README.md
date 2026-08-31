@@ -122,6 +122,63 @@ Exit with code 1 if the Schemafile and the current database are not in sync. Use
 rails db:generate_migration:check
 ```
 
+### `rails db:coherent` / `rails db:coherent:apply`
+
+Adopt a hand-made database change as the truth. See [coherent](#coherent--when-the-db-was-changed-by-hand).
+
+## `coherent` — when the DB was changed by hand
+
+Sometimes someone edits the database directly — an emergency `ALTER TABLE` in production, say — and that state is the one you want to keep. The normal flow cannot express this: the Schemafile is behind, and running a migration to catch up would touch columns that are already correct.
+
+`coherent` takes the **DB as the source of truth** and moves everything else up to it: it writes the migration file that *would* have produced the change (so every other environment gets it through the normal `rails db:migrate`), updates the Schemafile, and then records the migration as applied on this database **without executing it**.
+
+```
+DB (hand-edited, = truth)
+  ├─ db:coherent        → db/migrate/*.rb (generated) + Schemafile (updated)
+  └─ db:coherent:apply  → INSERT INTO schema_migrations   ← columns untouched
+                          db/schema.rb re-dumped
+```
+
+### 1. Generate
+
+```bash
+rails db:coherent
+```
+
+```
+DB を正として以下を取り込みます:
+add_column users.nickname (string)
+
+生成したマイグレーション:
+  db/migrate/20260901120000_add_columns_to_users.rb
+更新した Schemafile: Schemafile
+
+内容を確認したうえで、DB を変更せず履歴だけを進めるには:
+  rails db:coherent:apply VERSION=20260901120000
+```
+
+The diff runs in the opposite direction from `db:generate_migration`: the DB is the desired state and the Schemafile is the current one, so a column that exists only in the DB comes out as `add_column`, not `remove_column`.
+
+### 2. Review, then rewrite history only
+
+```bash
+rails db:coherent:apply VERSION=20260901120000
+```
+
+This inserts the version into `schema_migrations` and re-dumps `db/schema.rb`. No DDL is executed — the columns are already where they should be.
+
+`VERSION` is required (comma-separate several). Run without it to list the pending migrations. Before writing anything, `apply` re-checks that the DB and the Schemafile match: if they do not, the migration genuinely needs to run and the task aborts.
+
+### On other environments
+
+Nothing special. `db/migrate/*.rb` is a normal migration, so staging and production pick it up with `rails db:migrate`.
+
+### Caveats
+
+- `db:coherent` regenerates the whole Schemafile from the DB, so hand-written comments and ordering in it are lost. Review the diff (`git diff Schemafile`) before committing.
+- `rename_hints` are not applied — a column renamed by hand comes out as `remove_column` + `add_column`.
+- Only what migsupo models is tracked: tables, columns, indexes. Foreign keys, extensions and check constraints are neither diffed nor written to the Schemafile.
+
 ## Environment Variables
 
 | Variable | Default | Description |
