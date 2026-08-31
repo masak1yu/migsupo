@@ -146,14 +146,14 @@ rails db:coherent
 ```
 
 ```
-DB を正として以下を取り込みます:
+Adopting the following from the database:
 add_column users.nickname (string)
 
-生成したマイグレーション:
+Generated migration(s):
   db/migrate/20260901120000_add_columns_to_users.rb
-更新した Schemafile: Schemafile
+Updated Schemafile: Schemafile
 
-内容を確認したうえで、DB を変更せず履歴だけを進めるには:
+Review them, then record the history without touching the database:
   rails db:coherent:apply VERSION=20260901120000
 ```
 

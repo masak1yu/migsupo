@@ -65,11 +65,11 @@ namespace :db do
     diff = Migsupo::Coherent.diff(schemafile_path: schemafile_path)
 
     if diff.empty?
-      puts "DB と Schemafile に差分はありません。coherent は不要です。"
+      puts "No differences between the database and the Schemafile. Nothing for coherent to do."
       next
     end
 
-    puts "DB を正として以下を取り込みます:"
+    puts "Adopting the following from the database:"
     puts diff.to_s
     puts
 
@@ -79,11 +79,11 @@ namespace :db do
     Migsupo::Coherent.dump_schemafile(path: schemafile_path)
     versions = files.map { |f| File.basename(f)[/\A\d+/] }
 
-    puts "生成したマイグレーション:"
+    puts "Generated migration(s):"
     files.each { |f| puts "  #{f}" }
-    puts "更新した Schemafile: #{schemafile_path}"
+    puts "Updated Schemafile: #{schemafile_path}"
     puts
-    puts "内容を確認したうえで、DB を変更せず履歴だけを進めるには:"
+    puts "Review them, then record the history without touching the database:"
     puts "  rails db:coherent:apply VERSION=#{versions.join(',')}"
   end
 
@@ -95,12 +95,12 @@ namespace :db do
       versions        = ENV["VERSION"].to_s.split(",").map(&:strip).reject(&:empty?)
 
       if versions.empty?
-        puts "VERSION を指定してください (例: VERSION=20260901120000)。"
+        puts "VERSION is required (e.g. VERSION=20260901120000)."
         pending = Migsupo::Coherent.pending(output_dir)
         if pending.empty?
-          puts "未適用のマイグレーションはありません。"
+          puts "No pending migrations."
         else
-          puts "未適用のマイグレーション:"
+          puts "Pending migrations:"
           pending.each { |version, name| puts "  #{version}  #{name}" }
         end
         exit 1
@@ -109,15 +109,15 @@ namespace :db do
       known = Migsupo::Coherent.migration_files(output_dir).to_h
       unknown = versions.reject { |v| known.key?(v) }
       unless unknown.empty?
-        puts "#{output_dir} に該当するマイグレーションがありません: #{unknown.join(', ')}"
+        puts "No migration found in #{output_dir} for: #{unknown.join(', ')}"
         exit 1
       end
 
-      # 履歴だけを進める前提は「DB が既に Schemafile どおりである」こと。
-      # 差分が残っていれば、そのマイグレーションは本当に実行が必要ということ。
+      # Recording history only is sound when the DB already matches the
+      # Schemafile. A remaining diff means the migration genuinely needs to run.
       diff = Migsupo::Coherent.diff(schemafile_path: schemafile_path)
       unless diff.empty?
-        puts "DB と Schemafile が一致していません。先に rails db:coherent を実行してください:"
+        puts "The database and the Schemafile do not match. Run rails db:coherent first:"
         puts diff.to_s
         exit 1
       end
@@ -125,11 +125,11 @@ namespace :db do
       inserted = Migsupo::Coherent.mark_applied(versions)
       skipped  = versions - inserted
 
-      inserted.each { |v| puts "適用済みとして記録: #{v}  #{known[v]}" }
-      skipped.each  { |v| puts "既に記録済みのためスキップ: #{v}  #{known[v]}" }
+      inserted.each { |v| puts "Recorded as applied: #{v}  #{known[v]}" }
+      skipped.each  { |v| puts "Already recorded, skipped: #{v}  #{known[v]}" }
 
       Rake::Task["db:schema:dump"].invoke
-      puts "db/schema.rb を更新しました。"
+      puts "Updated db/schema.rb."
     end
   end
 end
