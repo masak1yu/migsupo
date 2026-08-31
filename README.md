@@ -178,6 +178,7 @@ Nothing special. `db/migrate/*.rb` is a normal migration, so staging and product
 - `db:coherent` regenerates the whole Schemafile from the DB, so hand-written comments and ordering in it are lost. Review the diff (`git diff Schemafile`) before committing.
 - `rename_hints` are not applied — a column renamed by hand comes out as `remove_column` + `add_column`.
 - Only what migsupo models is tracked: tables, columns, indexes. Foreign keys, extensions and check constraints are neither diffed nor written to the Schemafile.
+- Primary key options (`id: :uuid`, `primary_key: "uid"`) are not read back from the database, so the regenerated Schemafile drops them. Diffs are unaffected — table options are not compared — but re-add them by hand if you ever recreate the table from the Schemafile.
 
 ## Environment Variables
 

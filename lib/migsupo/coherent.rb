@@ -32,10 +32,9 @@ module Migsupo
       applied = applied_versions
       inserted = versions.map(&:to_s) - applied
 
+      table = connection.quote_table_name("schema_migrations")
       inserted.each do |version|
-        connection.execute(
-          "INSERT INTO #{connection.quote_table_name('schema_migrations')} (version) VALUES (#{connection.quote(version)})"
-        )
+        connection.execute("INSERT INTO #{table} (version) VALUES (#{connection.quote(version)})")
       end
       inserted
     end
