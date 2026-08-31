@@ -9,6 +9,7 @@ require_relative "migsupo/loader/active_record_loader"
 require_relative "migsupo/loader/schema_rb_loader"
 require_relative "migsupo/differ/diff_calculator"
 require_relative "migsupo/generator/migration_generator"
+require_relative "migsupo/coherent"
 
 module Migsupo
   class << self
