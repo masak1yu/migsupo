@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    migsupo (0.1.0)
+    migsupo (0.3.0)
       activerecord (>= 6.1)
       activesupport (>= 6.1)
 
@@ -168,6 +168,7 @@ GEM
 
 PLATFORMS
   arm64-darwin-22
+  arm64-darwin-23
 
 DEPENDENCIES
   activerecord (>= 6.1)
