@@ -205,7 +205,9 @@ rails db:squash DRY_RUN=true   # print the Init migration, change nothing
 It aborts unless both hold:
 
 - every migration file has been applied (pending ones may carry data migrations the Schemafile cannot express)
-- the DB matches the Schemafile (the Init migration must reproduce this exact DB)
+- the DB matches the Schemafile (the Init migration is built from the Schemafile, so it has to describe this DB)
+
+The comparison always reads the live database; `LOADER` is ignored.
 
 ### 2. Review, then rewrite history
 
@@ -220,7 +222,10 @@ rails db:squash:apply VERSION=20261103120000
 Unlike `coherent`, this is **not** picked up by plain `rails db:migrate` — the Init migration would try to create tables that already exist. On every existing environment:
 
 1. Deploy the pre-squash code and run `rails db:migrate` so the DB matches the Schemafile.
-2. Deploy the squashed code and run `rails db:squash:apply VERSION=<ts>` **before** `rails db:migrate`.
+2. Deploy exactly the squash commit and run `rails db:squash:apply VERSION=<ts>` **before** `rails db:migrate`.
+3. Deploy later commits as usual.
+
+`apply` re-checks the DB against the deployed Schemafile, so step 2 must not include Schemafile changes made after the squash — otherwise it aborts.
 
 New environments just run `rails db:migrate` (or `db:schema:load`).
 
@@ -228,6 +233,7 @@ New environments just run `rails db:migrate` (or `db:schema:load`).
 
 - Data migrations and raw SQL in the old files are gone. Keep them elsewhere if you still need them.
 - Only what migsupo models is emitted: tables, columns, indexes. Foreign keys, extensions and check constraints are not in the Init migration.
+- The sync check compares columns and indexes only. Table options (`id: :uuid`, `primary_key:`, comments) are taken from the Schemafile as written and not verified against the DB.
 
 ## Environment Variables
 
@@ -235,7 +241,7 @@ New environments just run `rails db:migrate` (or `db:schema:load`).
 |---|---|---|
 | `SCHEMAFILE` | `Schemafile` | Path to the Schemafile |
 | `OUTPUT_DIR` | `db/migrate` | Output directory for generated migration files |
-| `LOADER` | `activerecord` | Schema loader: `activerecord` or `schema_rb` |
+| `LOADER` | `activerecord` | Schema loader: `activerecord` or `schema_rb` (`db:generate_migration*` only) |
 | `DRY_RUN` | `false` | Print migrations to stdout instead of writing files |
 | `VERBOSE` | `false` | Print diff summary before generating files |
 
