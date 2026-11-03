@@ -126,6 +126,10 @@ rails db:generate_migration:check
 
 Adopt a hand-made database change as the truth. See [coherent](#coherent--when-the-db-was-changed-by-hand).
 
+### `rails db:squash` / `rails db:squash:apply`
+
+Collapse the whole migration history into a single `Init` migration. See [squash](#squash--collapse-the-history-into-one-init-migration).
+
 ## `coherent` — when the DB was changed by hand
 
 Sometimes someone edits the database directly — an emergency `ALTER TABLE` in production, say — and that state is the one you want to keep. The normal flow cannot express this: the Schemafile is behind, and running a migration to catch up would touch columns that are already correct.
@@ -179,6 +183,49 @@ Nothing special. `db/migrate/*.rb` is a normal migration, so staging and product
 - `rename_hints` are not applied — a column renamed by hand comes out as `remove_column` + `add_column`.
 - Only what migsupo models is tracked: tables, columns, indexes. Foreign keys, extensions and check constraints are neither diffed nor written to the Schemafile.
 - Primary key options (`id: :uuid`, `primary_key: "uid"`) are not read back from the database, so the regenerated Schemafile drops them. Diffs are unaffected — table options are not compared — but re-add them by hand if you ever recreate the table from the Schemafile.
+
+## `squash` — collapse the history into one Init migration
+
+When `db/migrate` has grown long, `squash` replaces every migration file with a single `<timestamp>_init.rb` that creates the whole schema as declared in the Schemafile, and then rewrites `schema_migrations` to hold only that version. No DDL is executed.
+
+```
+db/migrate/*.rb (N files)
+  ├─ db:squash        → db/migrate/<ts>_init.rb   (all other files deleted)
+  └─ db:squash:apply  → schema_migrations = [<ts>]   ← tables untouched
+                        db/schema.rb re-dumped
+```
+
+### 1. Generate
+
+```bash
+rails db:squash
+rails db:squash DRY_RUN=true   # print the Init migration, change nothing
+```
+
+It aborts unless both hold:
+
+- every migration file has been applied (pending ones may carry data migrations the Schemafile cannot express)
+- the DB matches the Schemafile (the Init migration must reproduce this exact DB)
+
+### 2. Review, then rewrite history
+
+```bash
+rails db:squash:apply VERSION=20261103120000
+```
+
+### On other environments
+
+Unlike `coherent`, this is **not** picked up by plain `rails db:migrate` — the Init migration would try to create tables that already exist. On every existing environment:
+
+1. Deploy the pre-squash code and run `rails db:migrate` so the DB matches the Schemafile.
+2. Deploy the squashed code and run `rails db:squash:apply VERSION=<ts>` **before** `rails db:migrate`.
+
+New environments just run `rails db:migrate` (or `db:schema:load`).
+
+### Caveats
+
+- Data migrations and raw SQL in the old files are gone. Keep them elsewhere if you still need them.
+- Only what migsupo models is emitted: tables, columns, indexes. Foreign keys, extensions and check constraints are not in the Init migration.
 
 ## Environment Variables
 

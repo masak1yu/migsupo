@@ -133,3 +133,76 @@ namespace :db do
     end
   end
 end
+
+namespace :db do
+  desc "Collapse every migration into a single Init migration built from the Schemafile"
+  task squash: :environment do
+    schemafile_path = ENV.fetch("SCHEMAFILE", Migsupo.configuration.schemafile_path)
+    output_dir      = ENV.fetch("OUTPUT_DIR", Migsupo.configuration.migrations_dir)
+    dry_run         = ENV["DRY_RUN"] == "true"
+
+    # Pending files may hold data migrations that the Schemafile cannot express.
+    pending = Migsupo::Coherent.pending(output_dir)
+    unless pending.empty?
+      puts "Run the pending migrations before squashing:"
+      pending.each { |version, name| puts "  #{version}  #{name}" }
+      exit 1
+    end
+
+    # Init replaces the history only if it reproduces this exact DB.
+    diff = Migsupo.calculate_diff(schemafile_path: schemafile_path, loader: :active_record)
+    unless diff.empty?
+      puts "The database and the Schemafile do not match. Bring them in sync before squashing:"
+      puts diff.to_s
+      exit 1
+    end
+
+    content = Migsupo::Squash.build(schemafile_path: schemafile_path, rails_version: Migsupo.detect_rails_version)
+    if dry_run
+      puts content
+      next
+    end
+
+    removed = Migsupo::Coherent.migration_files(output_dir).size
+    path    = Migsupo::Squash.write(content, migrations_dir: output_dir)
+    version = File.basename(path)[/\A\d+/]
+
+    puts "Removed #{removed} migration file(s) and generated:"
+    puts "  #{path}"
+    puts
+    puts "Review it, then replace the history on every environment (no DDL is executed):"
+    puts "  rails db:squash:apply VERSION=#{version}"
+  end
+
+  namespace :squash do
+    desc "Replace schema_migrations with the single Init version (VERSION=ts)"
+    task apply: :environment do
+      schemafile_path = ENV.fetch("SCHEMAFILE", Migsupo.configuration.schemafile_path)
+      output_dir      = ENV.fetch("OUTPUT_DIR", Migsupo.configuration.migrations_dir)
+      version         = ENV["VERSION"].to_s.strip
+
+      if version.empty?
+        puts "VERSION is required (e.g. VERSION=20261103120000)."
+        exit 1
+      end
+
+      unless Migsupo::Coherent.migration_files(output_dir).to_h[version]
+        puts "No migration found in #{output_dir} for: #{version}"
+        exit 1
+      end
+
+      diff = Migsupo.calculate_diff(schemafile_path: schemafile_path, loader: :active_record)
+      unless diff.empty?
+        puts "The database and the Schemafile do not match. Run rails db:migrate on the pre-squash code first:"
+        puts diff.to_s
+        exit 1
+      end
+
+      Migsupo::Squash.rewrite_history(version)
+      puts "schema_migrations now holds only: #{version}"
+
+      Rake::Task["db:schema:dump"].invoke
+      puts "Updated db/schema.rb."
+    end
+  end
+end

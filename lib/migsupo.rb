@@ -10,6 +10,7 @@ require_relative "migsupo/loader/schema_rb_loader"
 require_relative "migsupo/differ/diff_calculator"
 require_relative "migsupo/generator/migration_generator"
 require_relative "migsupo/coherent"
+require_relative "migsupo/squash"
 
 module Migsupo
   class << self
@@ -39,6 +40,14 @@ module Migsupo
                                    .generate(diff, output_dir: output_dir, dry_run: dry_run)
     end
 
+    def detect_rails_version
+      return configuration.migration_version if configuration.migration_version
+      return nil unless defined?(Rails)
+
+      major_minor = Rails::VERSION::STRING.split(".").first(2).join(".")
+      major_minor
+    end
+
     private
 
     def build_loader(loader)
@@ -61,14 +70,6 @@ module Migsupo
       else
         "db/schema.rb"
       end
-    end
-
-    def detect_rails_version
-      return configuration.migration_version if configuration.migration_version
-      return nil unless defined?(Rails)
-
-      major_minor = Rails::VERSION::STRING.split(".").first(2).join(".")
-      major_minor
     end
   end
 end
