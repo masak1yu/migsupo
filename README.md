@@ -213,7 +213,7 @@ It aborts unless both hold:
 rails db:squash:apply VERSION=20261103120000
 ```
 
-`VERSION` can be omitted when `db/migrate` holds exactly one `*_init.rb`; that one is used.
+`VERSION` can be omitted when `db/migrate` holds exactly one file (right after `db:squash`); that one is used.
 
 ### On other environments
 
