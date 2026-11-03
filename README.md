@@ -213,6 +213,8 @@ It aborts unless both hold:
 rails db:squash:apply VERSION=20261103120000
 ```
 
+`VERSION` can be omitted when `db/migrate` holds exactly one `*_init.rb`; that one is used.
+
 ### On other environments
 
 Unlike `coherent`, this is **not** picked up by plain `rails db:migrate` — the Init migration would try to create tables that already exist. On every existing environment:

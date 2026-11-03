@@ -182,8 +182,13 @@ namespace :db do
       version         = ENV["VERSION"].to_s.strip
 
       if version.empty?
-        puts "VERSION is required (e.g. VERSION=20261103120000)."
-        exit 1
+        inits = Migsupo::Coherent.migration_files(output_dir).select { |_, name| name.end_with?("_init.rb") }
+        unless inits.size == 1
+          puts "VERSION is required when there is not exactly one *_init.rb in #{output_dir} (found #{inits.size})."
+          exit 1
+        end
+        version = inits.first.first
+        puts "Using #{inits.first.last}"
       end
 
       unless Migsupo::Coherent.migration_files(output_dir).to_h[version]
